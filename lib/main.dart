@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/device_provider.dart';
 import 'providers/gnss_provider.dart';

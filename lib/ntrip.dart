@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
+
 class NtripSetting {
   String host;
   int port;
@@ -134,6 +136,7 @@ class Ntrip {
              
         }
       } catch (e) {
+        debugPrint('Error processing NTRIP header: $e');
       }
     } else {
       onDataReceived?.call(data);

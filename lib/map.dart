@@ -28,7 +28,6 @@ class PolarRulerPainter extends CustomPainter {
     final double latRad = latitude * math.pi / 180;
     final double metersPerPixel = (2 * math.pi * earthRadius * math.cos(latRad)) / (256 * math.pow(2, zoom));
     final double pixelsPerMeter = 1.0 / metersPerPixel;
-    final double pixelsPerCm = pixelsPerMeter / 100.0;
 
     final Paint circlePaint = Paint()
       ..color = Colors.grey.shade600

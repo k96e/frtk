@@ -211,7 +211,7 @@ class _NtripPanelState extends State<NtripPanel> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: DataTable(
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
           headingRowHeight: 40,
           dataRowMinHeight: 30,
           dataRowMaxHeight: 30,

@@ -64,6 +64,29 @@ class SatelliteInfo {
     this.snr,
     this.signalId,
   }) : uniqueKey = '$sourceKey:$prn';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SatelliteInfo &&
+          runtimeType == other.runtimeType &&
+          sourceKey == other.sourceKey &&
+          system == other.system &&
+          prn == other.prn &&
+          elevation == other.elevation &&
+          azimuth == other.azimuth &&
+          snr == other.snr &&
+          signalId == other.signalId;
+
+  @override
+  int get hashCode =>
+      sourceKey.hashCode ^
+      system.hashCode ^
+      prn.hashCode ^
+      elevation.hashCode ^
+      azimuth.hashCode ^
+      snr.hashCode ^
+      signalId.hashCode;
 }
 
 class NmeaParser {

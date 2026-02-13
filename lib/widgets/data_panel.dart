@@ -159,6 +159,7 @@ class DataPanel extends StatelessWidget {
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
+                  fontFamily: 'monospace',
                 ),
               ),
               if (dms.isNotEmpty)
@@ -201,6 +202,7 @@ class DataPanel extends StatelessWidget {
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: color,
+                fontFamily: 'monospace',
               ),
             ),
           ],

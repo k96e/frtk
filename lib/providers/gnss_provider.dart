@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../nmea.dart';
 
@@ -22,6 +23,9 @@ class GnssProvider extends ChangeNotifier {
   String _ellipseSemiMinor = "--";
 
   String _buffer = "";
+  final Map<String, SatelliteInfo> _satelliteMap = {};
+  final Map<String, Set<String>> _sourceSatelliteKeys = {};
+  final Map<String, _GsvCycleState> _gsvCycles = {};
 
   String get latitude => _latitude;
   String get longitude => _longitude;
@@ -38,6 +42,19 @@ class GnssProvider extends ChangeNotifier {
   String get ellipseOrientation => _ellipseOrientation;
   String get ellipseSemiMajor => _ellipseSemiMajor;
   String get ellipseSemiMinor => _ellipseSemiMinor;
+  List<SatelliteInfo> get satelliteList {
+    final list = _satelliteMap.values.toList();
+    list.sort((a, b) {
+      final system = a.system.compareTo(b.system);
+      if (system != 0) return system;
+      final prn = a.prn.compareTo(b.prn);
+      if (prn != 0) return prn;
+      final sigA = a.signalId ?? '';
+      final sigB = b.signalId ?? '';
+      return sigA.compareTo(sigB);
+    });
+    return list;
+  }
 
   bool get hasValidPosition => _latitudeDeg != null && _longitudeDeg != null;
   bool get isRtkFixed => _quality.contains("RTK");
@@ -56,7 +73,7 @@ class GnssProvider extends ChangeNotifier {
       }
     }
     if (needsUpdate) {
-      notifyListeners();
+      _scheduleUpdate();
     }
   }
 
@@ -66,6 +83,23 @@ class GnssProvider extends ChangeNotifier {
       return true;
     }
     return false;
+  }
+
+  Timer? _debounceTimer;
+
+  void _scheduleUpdate() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    
+    _debounceTimer = Timer(const Duration(milliseconds: 100), () {
+      notifyListeners();
+      _debounceTimer = null;
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
   }
 
   bool _parseNmea(String line) {
@@ -89,8 +123,72 @@ class GnssProvider extends ChangeNotifier {
     hasChanges |= _update(data.ellipseMajorOrientation, _ellipseOrientation, (v) => _ellipseOrientation = v);
     hasChanges |= _update(data.ellipseSemiMajor, _ellipseSemiMajor, (v) => _ellipseSemiMajor = v);
     hasChanges |= _update(data.ellipseSemiMinor, _ellipseSemiMinor, (v) => _ellipseSemiMinor = v);
+    hasChanges |= _updateGsvData(data);
 
     return hasChanges;
+  }
+
+  bool _updateGsvData(NmeaData data) {
+    final sourceKey = data.gsvSourceKey;
+    final updates = data.satelliteUpdates;
+    if (sourceKey == null || updates == null) return false;
+
+    final totalMessages = data.gsvTotalMessages ?? 0;
+    final messageNumber = data.gsvMessageNumber ?? 0;
+
+    if (totalMessages <= 0 || messageNumber <= 0) {
+      return false;
+    }
+
+    final cycle = _gsvCycles.putIfAbsent(
+      sourceKey,
+      () => _GsvCycleState(totalMessages: totalMessages),
+    );
+
+    bool isNewCycle = messageNumber == 1 || cycle.totalMessages != totalMessages;
+    
+    if (!isNewCycle && cycle.frames.containsKey(messageNumber)) {
+       cycle.frames.clear();
+    }
+
+    if (isNewCycle) {
+      cycle.totalMessages = totalMessages;
+      cycle.frames.clear();
+    }
+
+    cycle.frames[messageNumber] = updates;
+
+    if (cycle.frames.length < cycle.totalMessages) {
+      return false;
+    }
+
+    final newKeys = <String>{};
+    
+    for (final frameUpdates in cycle.frames.values) {
+      for (final sat in frameUpdates) {
+        _satelliteMap[sat.uniqueKey] = sat;
+        newKeys.add(sat.uniqueKey);
+      }
+    }
+
+    final oldKeys = _sourceSatelliteKeys[sourceKey];
+    if (oldKeys != null && oldKeys.isNotEmpty) {
+      final toRemove = <String>[];
+      for (final oldKey in oldKeys) {
+        if (!newKeys.contains(oldKey)) {
+          toRemove.add(oldKey);
+        }
+      }
+      for (final key in toRemove) {
+        _satelliteMap.remove(key);
+      }
+    }
+    
+    _sourceSatelliteKeys[sourceKey] = newKeys;
+    
+    cycle.frames.clear(); 
+    
+    return true;
   }
 
   String? _lastGGA;
@@ -118,6 +216,16 @@ class GnssProvider extends ChangeNotifier {
     _ellipseSemiMinor = "--";
     _buffer = "";
     _lastGGA = null;
+    _satelliteMap.clear();
+    _sourceSatelliteKeys.clear();
+    _gsvCycles.clear();
     notifyListeners();
   }
+}
+
+class _GsvCycleState {
+  int totalMessages;
+  final Map<int, List<SatelliteInfo>> frames = {};
+
+  _GsvCycleState({required this.totalMessages});
 }

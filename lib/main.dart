@@ -11,6 +11,7 @@ import 'widgets/device_panel.dart';
 import 'widgets/data_panel.dart';
 import 'widgets/log_panel.dart';
 import 'widgets/ntrip_panel.dart';
+import 'widgets/satellite_panel.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -137,6 +138,16 @@ class _GpsUsbPageState extends State<GpsUsbPage> {
                 selectedTileColor: Colors.blue.withOpacity(0.1),
                 onTap: () {
                   setState(() => _selectedIndex = 4);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.satellite),
+                title: const Text('卫星列表'),
+                selected: _selectedIndex == 5,
+                selectedTileColor: Colors.blue.withOpacity(0.1),
+                onTap: () {
+                  setState(() => _selectedIndex = 5);
                   Navigator.pop(context);
                 },
               ),
@@ -274,6 +285,8 @@ class _GpsUsbPageState extends State<GpsUsbPage> {
         return const NtripPanel();
       case 4:
         return const MapPage();
+      case 5:
+        return const SatellitePanel();
       default:
         return const Center(child: Text('未知面板'));
     }

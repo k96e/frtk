@@ -278,15 +278,25 @@ class NmeaParser {
   static String _getQualityText(String quality) {
     switch (quality) {
       case '0':
-        return '无效';
+        return '无效定位';
       case '1':
-        return 'GPS';
+        return '单点定位';
       case '2':
-        return 'DGPS';
+        return '差分定位';
+      case '3':
+        return 'PPS定位';
       case '4':
         return 'RTK固定解';
       case '5':
         return 'RTK浮点解';
+      case '6':
+        return '推算定位';
+      case '7':
+        return '手动输入';
+      case '8':
+        return '模拟定位';
+      case '9':
+        return 'WAAS/SBAS定位';
       default:
         return '未知';
     }

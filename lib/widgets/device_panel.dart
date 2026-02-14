@@ -67,7 +67,7 @@ class DevicePanel extends StatelessWidget {
                             Icon(Icons.usb_off, size: 64, color: Colors.grey[400]),
                             const SizedBox(height: 16),
                             Text(
-                              '未发现USB设备',
+                              '未发现串口设备',
                               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                             ),
                             const SizedBox(height: 8),
@@ -93,13 +93,15 @@ class DevicePanel extends StatelessWidget {
                                 size: 32,
                               ),
                               title: Text(
-                                device.productName ?? 'Unknown Device',
+                                device.productName ?? device.name,
                                 style: TextStyle(
                                   fontWeight: isConnected ? FontWeight.bold : FontWeight.normal,
                                 ),
                               ),
                               subtitle: Text(
-                                'VID: ${device.vid} | PID: ${device.pid}',
+                                device.manufacturer != null 
+                                    ? '制造商: ${device.manufacturer}'
+                                    : 'ID: ${device.id}',
                                 style: const TextStyle(fontSize: 12),
                               ),
                               trailing: isConnected
@@ -129,7 +131,7 @@ class DevicePanel extends StatelessWidget {
                                             SnackBar(
                                               content: Text(
                                                 success
-                                                    ? "已连接到 ${device.productName}"
+                                                    ? "已连接到 ${device.productName ?? device.name}"
                                                     : "连接失败: ${deviceProvider.status}",
                                               ),
                                             ),

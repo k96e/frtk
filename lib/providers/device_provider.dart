@@ -1,24 +1,31 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:usb_serial/usb_serial.dart';
+import 'adapters/serial_adapter.dart';
 
 class DeviceProvider extends ChangeNotifier {
-  UsbPort? _port;
-  UsbDevice? _connectedDevice;
+  late final SerialAdapter _adapter;
+  SerialDeviceInfo? _connectedDevice;
   String _status = "未连接";
-  List<UsbDevice> _availableDevices = [];
+  List<SerialDeviceInfo> _availableDevices = [];
   int _selectedBaudRate = 115200;
-  StreamSubscription<Uint8List>? _subscription;
+  StreamSubscription<String>? _subscription;
 
-  final _dataStreamController = StreamController<String>.broadcast();
+  DeviceProvider() {
+    _adapter = SerialAdapter.create();
+    _setupDataStream();
+  }
 
-  UsbDevice? get connectedDevice => _connectedDevice;
+  SerialDeviceInfo? get connectedDevice => _connectedDevice;
   String get status => _status;
-  List<UsbDevice> get availableDevices => _availableDevices;
+  List<SerialDeviceInfo> get availableDevices => _availableDevices;
   int get selectedBaudRate => _selectedBaudRate;
-  bool get isConnected => _connectedDevice != null && _port != null;
+  bool get isConnected => _adapter.isConnected;
   
-  Stream<String> get dataStream => _dataStreamController.stream;
+  Stream<String> get dataStream => _adapter.dataStream;
+
+  void _setupDataStream() {
+    
+  }
 
   final List<int> baudRates = [
     4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600
@@ -29,14 +36,13 @@ class DeviceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      List<UsbDevice> devices = await UsbSerial.listDevices();
-      _availableDevices = devices;
+      _availableDevices = await _adapter.scanDevices();
       
       if (_availableDevices.isEmpty) {
         _status = "未发现设备";
       } else {
         _status = _connectedDevice != null 
-            ? "已连接: ${_connectedDevice!.productName}" 
+            ? "已连接: ${_connectedDevice!.productName ?? _connectedDevice!.name}" 
             : "未连接";
       }
     } catch (e) {
@@ -53,92 +59,44 @@ class DeviceProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> connectTo(UsbDevice device) async {
+  Future<bool> connectTo(SerialDeviceInfo device) async {
     await disconnect();
 
     _status = "正在连接...";
     notifyListeners();
 
-    try {
-      UsbPort? port = await device.create();
-      if (port == null) {
-        _status = "创建端口失败";
-        notifyListeners();
-        return false;
-      }
-
-      bool openResult = await port.open();
-      if (!openResult) {
-        _status = "打开端口失败";
-        notifyListeners();
-        return false;
-      }
-
-      await port.setPortParameters(
-        _selectedBaudRate,
-        UsbPort.DATABITS_8,
-        UsbPort.STOPBITS_1,
-        UsbPort.PARITY_NONE,
-      );
-
-      _port = port;
+    bool success = await _adapter.connect(device, _selectedBaudRate);
+    
+    if (success) {
       _connectedDevice = device;
       _status = "已连接";
-
-      _subscription = _port!.inputStream!.listen(
-        (Uint8List data) {
-          String dataStr = String.fromCharCodes(data);
-          _dataStreamController.add(dataStr);
-        },
-        onError: (error) {
-          _status = "数据接收错误: $error";
-          notifyListeners();
-        },
-      );
-
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _status = "连接失败: $e";
-      notifyListeners();
-      return false;
+    } else {
+      _status = _adapter.statusMessage;
     }
+    
+    notifyListeners();
+    return success;
   }
 
   Future<void> disconnect() async {
-    if (_subscription != null) {
-      await _subscription!.cancel();
-      _subscription = null;
-    }
-    
-    if (_port != null) {
-      await _port!.close();
-      _port = null;
-    }
-
+    await _adapter.disconnect();
     _connectedDevice = null;
     _status = "已断开";
     notifyListeners();
   }
 
   Future<bool> write(Uint8List data) async {
-    if (_port == null) {
-      return false;
-    }
-
-    try {
-      await _port!.write(data);
-      return true;
-    } catch (e) {
-      debugPrint("写入串口失败: $e");
-      return false;
-    }
+    return await _adapter.write(data);
   }
 
   @override
   void dispose() {
-    disconnect();
-    _dataStreamController.close();
+    _subscription?.cancel();
+    if (_adapter is AndroidSerialAdapter) {
+      _adapter.dispose();
+    } else if (_adapter is WindowsSerialAdapter) {
+      _adapter.dispose();
+    }
     super.dispose();
   }
 }

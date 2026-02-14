@@ -82,7 +82,9 @@ class DataPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+              _buildSpeedCourseCard(gnssProvider.speed, gnssProvider.course),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
@@ -91,30 +93,6 @@ class DataPanel extends StatelessWidget {
                       gnssProvider.time,
                       Icons.access_time,
                       Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildInfoCard(
-                      '定位质量',
-                      gnssProvider.quality,
-                      Icons.gps_fixed,
-                      gnssProvider.quality.contains('RTK')
-                          ? Colors.green
-                          : Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildInfoCard(
-                      '卫星数',
-                      gnssProvider.satellites,
-                      Icons.satellite_alt,
-                      Colors.purple,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -132,6 +110,137 @@ class DataPanel extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSpeedCourseCard(String speedVal, String courseVal) {
+    double rotation = 0.0;
+    if (courseVal != "--") {
+      try {
+        rotation = double.parse(courseVal) * (3.1415926535 / 180.0);
+      } catch (_) {}
+    }
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Icon(Icons.speed, color: Colors.orange, size: 28),
+                        const SizedBox(width: 6),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2.0),
+                          child: Text('速度',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: speedVal == "--"
+                          ? const Text(
+                              "--",
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                                fontFamily: 'monospace',
+                              ),
+                            )
+                          : RichText(
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: speedVal,
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: " km/h",
+                                    style: TextStyle(
+                                      fontSize: 14, // 缩小字号
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black54,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: Colors.grey.withOpacity(0.3),
+                indent: 10,
+                endIndent: 10,
+              ),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Transform.rotate(
+                          angle: rotation,
+                          child: const Icon(Icons.navigation,
+                              color: Colors.indigo, size: 28),
+                        ),
+                        const SizedBox(width: 6),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2.0),
+                          child: Text('航向',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        courseVal == "--" ? "--" : "$courseVal°",
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

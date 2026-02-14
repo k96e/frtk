@@ -20,6 +20,8 @@ class NmeaData {
   final String? gsvSourceKey;
   final int? gsvTotalMessages;
   final int? gsvMessageNumber;
+  final String? course;
+  final String? speed;
 
   NmeaData({
     this.time,
@@ -42,6 +44,8 @@ class NmeaData {
     this.gsvSourceKey,
     this.gsvTotalMessages,
     this.gsvMessageNumber,
+    this.course,
+    this.speed,
   });
 }
 
@@ -104,8 +108,33 @@ class NmeaParser {
        return _parseGST(line);
     } else if (sentenceType == "GSV") {
       return _parseGSV(line);
+    } else if (sentenceType == "VTG") {
+      return _parseVTG(line);
     }
     return null;
+  }
+
+  static NmeaData? _parseVTG(String line) {
+    // $GNVTG,,T,,M,0.00,N,0.01,K,A*22
+    // Field 1: True course
+    // Field 2: T
+    // Field 3: Magnetic course
+    // Field 4: M
+    // Field 5: Speed knots
+    // Field 6: N
+    // Field 7: Speed km/h
+    // Field 8: K
+    final noChecksum = line.split('*').first;
+    final parts = noChecksum.split(',');
+    if (parts.length < 9) return null;
+
+    String course = parts[1];
+    String speedKmh = parts[7];
+
+    return NmeaData(
+      course: course.isEmpty ? "--" : course,
+      speed: speedKmh.isEmpty ? "--" : num.tryParse(speedKmh)?.toStringAsFixed(1) ?? "--",
+    );
   }
 
   static NmeaData? _parseGSV(String line) {

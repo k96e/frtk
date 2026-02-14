@@ -237,30 +237,37 @@ class _GpsUsbPageState extends State<GpsUsbPage> {
                   ),
                 ),
                 if (connectedDevice != null) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: quality.contains("RTK") ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: quality.contains("RTK") ? Colors.green : Colors.orange,
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedIndex = 1;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: quality.contains("RTK") ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: quality.contains("RTK") ? Colors.green : Colors.orange,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          quality,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: quality.contains("RTK") ? Colors.green[700] : Colors.orange[800],
+                      child: Column(
+                        children: [
+                          Text(
+                            quality,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: quality.contains("RTK") ? Colors.green[700] : Colors.orange[800],
+                            ),
                           ),
-                        ),
-                        Text(
-                          "卫星: $satellites",
-                          style: const TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                      ],
+                          Text(
+                            "卫星: $satellites",
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

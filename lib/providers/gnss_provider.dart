@@ -22,6 +22,9 @@ class GnssProvider extends ChangeNotifier {
   String _ellipseSemiMajor = "--";
   String _ellipseSemiMinor = "--";
 
+  String _course = "--";
+  String _speed = "--";
+
   String _buffer = "";
   final Map<String, SatelliteInfo> _satelliteMap = {};
   final Map<String, Set<String>> _sourceSatelliteKeys = {};
@@ -42,6 +45,8 @@ class GnssProvider extends ChangeNotifier {
   String get ellipseOrientation => _ellipseOrientation;
   String get ellipseSemiMajor => _ellipseSemiMajor;
   String get ellipseSemiMinor => _ellipseSemiMinor;
+  String get course => _course;
+  String get speed => _speed;
   List<SatelliteInfo> get satelliteList {
     final list = _satelliteMap.values.toList();
     list.sort((a, b) {
@@ -123,6 +128,8 @@ class GnssProvider extends ChangeNotifier {
     hasChanges |= _update(data.ellipseMajorOrientation, _ellipseOrientation, (v) => _ellipseOrientation = v);
     hasChanges |= _update(data.ellipseSemiMajor, _ellipseSemiMajor, (v) => _ellipseSemiMajor = v);
     hasChanges |= _update(data.ellipseSemiMinor, _ellipseSemiMinor, (v) => _ellipseSemiMinor = v);
+    hasChanges |= _update(data.course, _course, (v) => _course = v);
+    hasChanges |= _update(data.speed, _speed, (v) => _speed = v);
     hasChanges |= _updateGsvData(data);
 
     return hasChanges;
@@ -212,6 +219,8 @@ class GnssProvider extends ChangeNotifier {
     _lonStdDev = "--";
     _altStdDev = "--";
     _ellipseOrientation = "--";
+    _course = "--";
+    _speed = "--";
     _ellipseSemiMajor = "--";
     _ellipseSemiMinor = "--";
     _buffer = "";

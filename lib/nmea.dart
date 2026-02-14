@@ -305,69 +305,79 @@ class NmeaParser {
   static String? _getSignalName(String talker, String? signalId) {
     if (signalId == null || signalId.isEmpty) return null;
 
+    int? idVal = int.tryParse(signalId, radix: 16);
+    if (idVal == null) return signalId;
+
     switch (talker) {
       case 'GP': // GPS
-        switch (signalId) {
-          case '1': return 'L1 C/A';
-          case '2': return 'L1 P(Y)';
-          case '3': return 'L1 M';
-          case '4': return 'L2 P(Y)';
-          case '5': return 'L2C-M';
-          case '6': return 'L2C-L';
-          case '7': return 'L5 I';
-          case '8': return 'L5 Q';
+        switch (idVal) {
+          case 1: return 'L1 C/A';
+          case 2: return 'L1 P(Y)';
+          case 3: return 'L1 M';
+          case 4: return 'L2 P(Y)';
+          case 5: return 'L2C-M';
+          case 6: return 'L2C-L';
+          case 7: return 'L5-I';
+          case 8: return 'L5-Q';
         }
         break;
       case 'GL': // GLONASS
-        switch (signalId) {
-          case '1': return 'G1 C/A';
-          case '2': return 'G1 P';
-          case '3': return 'G2 C/A';
-          case '4': return 'G2a P';
+        switch (idVal) {
+          case 1: return 'G1 C/A';
+          case 2: return 'G1 P';
+          case 3: return 'G2 C/A';
+          case 4: return 'G2 P';
         }
         break;
       case 'GA': // Galileo
-        switch (signalId) {
-          case '1': return 'E5a';
-          case '2': return 'E5b';
-          case '3': return 'E5a+b'; 
-          case '4': return 'E6-A';
-          case '5': return 'E6-B';
-          case '6': return 'E6-C';
-          case '7': return 'E1';
+        switch (idVal) {
+          case 1: return 'E5a';
+          case 2: return 'E5b';
+          case 3: return 'E5 a+b';
+          case 4: return 'E6-A';
+          case 5: return 'E6-BC';
+          case 6: return 'L1-A';
+          case 7: return 'L1-BC';
         }
         break;
       case 'GB': // BeiDou
       case 'BD':
-        switch (signalId) {
-          case '1': return 'B1I';
-          case '2': return 'B2I';
-          case '3': return 'B3I';
-          case '4': return 'B1Q';
-          case '5': return 'B1C';
-          case '6': return 'B1A';
-          case '7': return 'B2a'; 
-          case '8': return 'B2b';
-          case '9': return 'B2a+b';
-          case 'A': return 'B3A';
-          case 'B': return 'B3Q';
-          case 'C': return 'B3C';
+        switch (idVal) {
+          case 1: return 'B1I';
+          case 2: return 'B1Q';
+          case 3: return 'B1C';
+          case 4: return 'B1A';
+          case 5: return 'B2a';
+          case 6: return 'B2b';
+          case 7: return 'B2 a+b';
+          case 8: return 'B3I';
+          case 9: return 'B3Q';
+          case 0xA: return 'B3A';
+          case 0xB: return 'B2I';
+          case 0xC: return 'B2Q';
         }
         break;
-       case 'GQ': // QZSS
-        switch (signalId) {
-          case '1': return 'L1 C/A';
-          case '2': return 'L1 S';
-          case '3': return 'L1 C';
-          case '4': return 'L2 C';
-          case '5': return 'L5';
-          case '6': return 'L5 S';
+      case 'GQ': // QZSS
+        switch (idVal) {
+          case 1: return 'L1 C/A';
+          case 2: return 'L1C (D)';
+          case 3: return 'L1C (P)';
+          case 4: return 'L1S';
+          case 5: return 'L2C-M';
+          case 6: return 'L2C-L';
+          case 7: return 'L5-I';
+          case 8: return 'L5-Q';
+          case 9: return 'L6D';
+          case 0xA: return 'L6E';
         }
         break;
-       case 'GI': // NavIC
-        switch (signalId) { 
-           case '1': return 'L5';
-           case '2': return 'S';
+      case 'GI': // NavIC
+        switch (idVal) {
+          case 1: return 'L5-SPS';
+          case 2: return 'S-SPS';
+          case 3: return 'L5-RS';
+          case 4: return 'S-RS';
+          case 5: return 'L1-SPS';
         }
         break;
     }

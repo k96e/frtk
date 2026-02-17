@@ -5,8 +5,15 @@ import '../providers/gnss_provider.dart';
 import '../nmea.dart';
 import 'dart:math';
 
-class SatellitePanel extends StatelessWidget {
+class SatellitePanel extends StatefulWidget {
   const SatellitePanel({super.key});
+
+  @override
+  State<SatellitePanel> createState() => _SatellitePanelState();
+}
+
+class _SatellitePanelState extends State<SatellitePanel> {
+  String _selectedSystem = 'BeiDou';
 
   @override
   Widget build(BuildContext context) {
@@ -16,13 +23,25 @@ class SatellitePanel extends StatelessWidget {
       builder: (context, satellites, child) {
         return Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final size = constraints.maxWidth * 0.95;
-                  return Center(
+          child: LayoutBuilder(
+            builder: (context, outerConstraints) {
+              const double legendHeight = 40.0;
+              const double dividerHeight = 16.0;
+              const double spacing = 24.0;
+              const double minBarChartRatio = 0.20;
+              
+              final availableHeight = outerConstraints.maxHeight;
+              final minBarChartHeight = availableHeight * minBarChartRatio;
+              
+              final maxSkyplotHeight = availableHeight - minBarChartHeight - 
+                                        legendHeight - dividerHeight - spacing;
+              
+              final size = min(outerConstraints.maxWidth * 0.95, maxSkyplotHeight);
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
                     child: SizedBox(
                       width: size,
                       height: size,
@@ -33,25 +52,33 @@ class SatellitePanel extends StatelessWidget {
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              // 图例区域
-              const SatelliteLegend(),
-              const SizedBox(height: 12),
-              const Divider(),
-              Expanded(
-                child: satellites.isEmpty
-                    ? const Center(
-                        child: Text(
-                          '暂无GSV卫星数据',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
-                    : _SatelliteListView(satellites: satellites),
-              ),
-            ],
+                  ),
+                  const SizedBox(height: 8),
+                  SatelliteLegend(
+                    selectedSystem: _selectedSystem,
+                    onSystemSelected: (system) {
+                      setState(() {
+                        _selectedSystem = system;
+                      });
+                    },
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: satellites.isEmpty
+                        ? const Center(
+                            child: Text(
+                              '暂无GSV卫星数据',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : _SnrBarChart(
+                            satellites: satellites,
+                            selectedSystem: _selectedSystem,
+                          ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },
@@ -59,210 +86,388 @@ class SatellitePanel extends StatelessWidget {
   }
 }
 
-class _SatelliteListView extends StatelessWidget {
+class _SnrBarChart extends StatelessWidget {
   final List<SatelliteInfo> satellites;
+  final String selectedSystem;
 
-  const _SatelliteListView({required this.satellites});
+  const _SnrBarChart({
+    required this.satellites,
+    required this.selectedSystem,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, _SatelliteGroup> groups = {};
+    final systemSats =
+        satellites.where((s) => s.system == selectedSystem).toList();
 
-    for (var sat in satellites) {
-      final key = '${sat.system}-${sat.prn}';
-      if (!groups.containsKey(key)) {
-        groups[key] = _SatelliteGroup(
-          system: sat.system,
-          prn: sat.prn,
-          elevation: sat.elevation,
-          azimuth: sat.azimuth,
-        );
-      }
-      var group = groups[key]!;
-      if (group.elevation == null && sat.elevation != null) {
-        group = group.copyWith(elevation: sat.elevation);
-        groups[key] = group;
-      }
-      if (group.azimuth == null && sat.azimuth != null) {
-        group = group.copyWith(azimuth: sat.azimuth);
-        groups[key] = group;
-      }
-
-      group.signals.add(sat);
+    if (systemSats.isEmpty) {
+      return Center(
+        child: Text('暂无$selectedSystem卫星数据',
+            style: const TextStyle(color: Colors.grey)),
+      );
     }
 
-    final sortedGroups = groups.values.toList()
-      ..sort((a, b) {
-        final systemCompare = a.system.compareTo(b.system);
-        if (systemCompare != 0) return systemCompare;
-        return a.prn.compareTo(b.prn);
-      });
+    final groups = <int, Map<String, SatelliteInfo>>{};
+    for (var sat in systemSats) {
+      final prnMap = groups.putIfAbsent(sat.prn, () => {});
+      final key = sat.signalId ?? 'UNK';
+      if (!prnMap.containsKey(key) ||
+          (sat.snr ?? 0) > (prnMap[key]!.snr ?? 0)) {
+        prnMap[key] = sat;
+      }
+    }
 
-    return ListView.builder(
-      itemCount: sortedGroups.length,
-      padding: const EdgeInsets.only(bottom: 20),
-      itemBuilder: (context, index) {
-        final group = sortedGroups[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            side: BorderSide(color: Colors.grey.withOpacity(0.2)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    SatelliteIcon(system: group.system),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${group.system} ${group.prn}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const Spacer(),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '仰角: ${group.elevation ?? '--'}°',
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                        Text(
-                          '方位角: ${group.azimuth ?? '--'}°',
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                      ],
-                    )
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: group.signals.map((sig) {
-                    final snr = sig.snr ?? 0;
-                    Color snrColor;
-                    if (snr >= 40) {
-                      snrColor = Colors.green;
-                    } else if (snr >= 30) {
-                      snrColor = Colors.orange;
-                    } else {
-                      snrColor = Colors.grey;
-                    }
+    final allSignals = <String>{};
+    for (var prnMap in groups.values) {
+      allSignals.addAll(prnMap.keys);
+    }
+    final sortedSignals = allSignals.toList()..sort();
 
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            sig.signalId ?? 'UNK',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              color: snrColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                            child: Text(
-                              '${sig.snr ?? '--'}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: snrColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+    return Column(
+      children: [
+        _SignalLegend(signals: sortedSignals, system: selectedSystem),
+        const SizedBox(height: 8),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              int totalBars = 0;
+              for (var prnMap in groups.values) {
+                totalBars += prnMap.length;
+              }
+              const double minBarWidth = 6.0;
+              const double marginH = 40.0;
+              final minWidth = totalBars * minBarWidth +
+                  (groups.length - 1) * minBarWidth * 1.2 +
+                  marginH;
+              final paintWidth = max(constraints.maxWidth, minWidth);
+
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: CustomPaint(
+                  size: Size(paintWidth, constraints.maxHeight),
+                  painter: SnrBarChartPainter(
+                    groups: groups,
+                    sortedSignals: sortedSignals,
+                    system: selectedSystem,
+                  ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
 
-class _SatelliteGroup {
+class SnrBarChartPainter extends CustomPainter {
+  final Map<int, Map<String, SatelliteInfo>> groups;
+  final List<String> sortedSignals;
   final String system;
-  final int prn;
-  final int? elevation;
-  final int? azimuth;
-  final List<SatelliteInfo> signals;
 
-  _SatelliteGroup({
+  static const Map<String, Map<String, Color>> systemSignalColors = {
+    'GPS': {
+      'L1 C/A': Color(0xFF0D47A1),
+      'L1 P(Y)': Color(0xFF1565C0),
+      'L1 M': Color(0xFF1976D2),
+      'L2 P(Y)': Color(0xFF1E88E5),
+      'L2C-M': Color(0xFF2196F3),
+      'L2C-L': Color(0xFF42A5F5),
+      'L5-I': Color(0xFF64B5F6),
+      'L5-Q': Color(0xFF90CAF9),
+    },
+    'BeiDou': {
+      'B1I': Color(0xFFB71C1C),
+      'B1Q': Color(0xFFC62828),
+      'B1C': Color(0xFFD32F2F),
+      'B1A': Color(0xFFE53935),
+      'B2a': Color(0xFFF44336),
+      'B2b': Color(0xFFEF5350),
+      'B2 a+b': Color(0xFFE57373),
+      'B3I': Color(0xFFFF5722),
+      'B3Q': Color(0xFFFF7043),
+      'B3A': Color(0xFFFF8A65),
+      'B2I': Color(0xFFAD1457),
+      'B2Q': Color(0xFFD81B60),
+    },
+    'GLONASS': {
+      'G1 C/A': Color(0xFF1B5E20),
+      'G1 P': Color(0xFF2E7D32),
+      'G2 C/A': Color(0xFF43A047),
+      'G2 P': Color(0xFF66BB6A),
+    },
+    'Galileo': {
+      'E5a': Color(0xFFE65100),
+      'E5b': Color(0xFFEF6C00),
+      'E5 a+b': Color(0xFFF57C00),
+      'E6-A': Color(0xFFFB8C00),
+      'E6-BC': Color(0xFFFF9800),
+      'L1-A': Color(0xFFFFA726),
+      'L1-BC': Color(0xFFFFB74D),
+    },
+    'QZSS': {
+      'L1 C/A': Color(0xFF4A148C),
+      'L1C (D)': Color(0xFF6A1B9A),
+      'L1C (P)': Color(0xFF7B1FA2),
+      'L1S': Color(0xFF8E24AA),
+      'L2C-M': Color(0xFF9C27B0),
+      'L2C-L': Color(0xFFAB47BC),
+      'L5-I': Color(0xFFBA68C8),
+      'L5-Q': Color(0xFFCE93D8),
+      'L6D': Color(0xFF7C4DFF),
+      'L6E': Color(0xFFB388FF),
+    },
+  };
+
+  static const List<Color> _fallbackColors = [
+    Color(0xFF5C6BC0),
+    Color(0xFF26A69A),
+    Color(0xFFEF6C00),
+    Color(0xFF6D4C41),
+    Color(0xFF78909C),
+  ];
+
+  SnrBarChartPainter({
+    required this.groups,
+    required this.sortedSignals,
     required this.system,
-    required this.prn,
-    this.elevation,
-    this.azimuth,
-    List<SatelliteInfo>? signals,
-  }) : signals = signals ?? [];
+  });
 
-  _SatelliteGroup copyWith({
-    String? system,
-    int? prn,
-    int? elevation,
-    int? azimuth,
-    List<SatelliteInfo>? signals,
-  }) {
-    return _SatelliteGroup(
-      system: system ?? this.system,
-      prn: prn ?? this.prn,
-      elevation: elevation ?? this.elevation,
-      azimuth: azimuth ?? this.azimuth,
-      signals: signals ?? this.signals,
+  Color _getSignalColor(String signalId) {
+    final systemColors = systemSignalColors[system];
+    if (systemColors != null && systemColors.containsKey(signalId)) {
+      return systemColors[signalId]!;
+    }
+    final idx = sortedSignals.indexOf(signalId);
+    return _fallbackColors[idx % _fallbackColors.length];
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double leftMargin = 32;
+    const double bottomMargin = 24;
+    const double topMargin = 10;
+    const double rightMargin = 8;
+    const double maxSnr = 60;
+
+    final chartLeft = leftMargin;
+    final chartRight = size.width - rightMargin;
+    final chartTop = topMargin;
+    final chartBottom = size.height - bottomMargin;
+    final chartWidth = chartRight - chartLeft;
+    final chartHeight = chartBottom - chartTop;
+
+    if (chartWidth <= 0 || chartHeight <= 0) return;
+
+    // --- 绘制网格与坐标轴 ---
+    final gridPaint = Paint()
+      ..color = const Color(0x33999999)
+      ..strokeWidth = 0.5;
+    final axisPaint = Paint()
+      ..color = const Color(0x88999999)
+      ..strokeWidth = 1;
+
+    for (int snr = 0; snr <= maxSnr.toInt(); snr += 10) {
+      final y = chartBottom - (snr / maxSnr) * chartHeight;
+      canvas.drawLine(Offset(chartLeft, y), Offset(chartRight, y), gridPaint);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '$snr',
+          style: const TextStyle(color: Color(0xFF757575), fontSize: 10),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(chartLeft - tp.width - 4, y - tp.height / 2));
+    }
+
+    canvas.drawLine(
+        Offset(chartLeft, chartTop), Offset(chartLeft, chartBottom), axisPaint);
+    canvas.drawLine(
+        Offset(chartLeft, chartBottom), Offset(chartRight, chartBottom), axisPaint);
+
+    // --- 准备数据 ---
+    final sortedPrns = groups.keys.toList()..sort();
+    if (sortedPrns.isEmpty) return;
+
+    final int totalGroups = sortedPrns.length;
+    int totalBars = 0;
+    for (var prn in sortedPrns) {
+      totalBars += groups[prn]!.length;
+    }
+
+    // 自适应柱宽：所有柱子 + 组间间距均分可用宽度
+    final double totalUnits = totalBars + (totalGroups - 1) * 1.2;
+    double barWidth = chartWidth / totalUnits;
+    barWidth = barWidth.clamp(4.0, 28.0);
+    final double groupGap = barWidth * 1.2;
+
+    // 计算实际总宽度并居中
+    double totalBarWidth = 0;
+    for (var prn in sortedPrns) {
+      totalBarWidth += groups[prn]!.length * barWidth;
+    }
+    final double totalWidth = totalBarWidth + (totalGroups - 1) * groupGap;
+    double curX = chartLeft + (chartWidth - totalWidth) / 2;
+
+    for (var prn in sortedPrns) {
+      final prnSignals = groups[prn]!;
+      final signalKeys = prnSignals.keys.toList()
+        ..sort((a, b) =>
+            sortedSignals.indexOf(a).compareTo(sortedSignals.indexOf(b)));
+
+      final groupStartX = curX;
+
+      for (var key in signalKeys) {
+        final sat = prnSignals[key]!;
+        final snr = (sat.snr ?? 0).clamp(0, maxSnr.toInt()).toDouble();
+        final barHeight = (snr / maxSnr) * chartHeight;
+
+        final color = _getSignalColor(key);
+        final barPaint = Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
+
+        final barRect = Rect.fromLTWH(
+          curX,
+          chartBottom - barHeight,
+          barWidth,
+          barHeight,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndCorners(
+            barRect,
+            topLeft: const Radius.circular(2),
+            topRight: const Radius.circular(2),
+          ),
+          barPaint,
+        );
+
+        curX += barWidth;
+      }
+
+      // PRN 标签居中显示在组下方
+      final groupEndX = curX;
+      final groupCenterX = (groupStartX + groupEndX) / 2;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '$prn',
+          style: const TextStyle(color: Color(0xFF616161), fontSize: 10),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+          canvas, Offset(groupCenterX - tp.width / 2, chartBottom + 4));
+
+      curX += groupGap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant SnrBarChartPainter oldDelegate) {
+    return oldDelegate.groups != groups ||
+        oldDelegate.sortedSignals != sortedSignals ||
+        oldDelegate.system != system;
+  }
+}
+
+class _SignalLegend extends StatelessWidget {
+  final List<String> signals;
+  final String system;
+
+  const _SignalLegend({required this.signals, required this.system});
+
+  @override
+  Widget build(BuildContext context) {
+    final systemColors = SnrBarChartPainter.systemSignalColors[system] ?? {};
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: signals.map((sig) {
+          final color = systemColors[sig] ?? Colors.grey;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(sig, style: const TextStyle(fontSize: 11)),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
 
 class SatelliteLegend extends StatelessWidget {
-  const SatelliteLegend({super.key});
+  final String selectedSystem;
+  final ValueChanged<String> onSystemSelected;
+
+  const SatelliteLegend({
+    super.key,
+    required this.selectedSystem,
+    required this.onSystemSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 16,
-      runSpacing: 8,
-      children: [
-        LegendItem(label: 'GPS', shape: BoxShape.circle, color: Colors.blue),
-        LegendItem(
+    return Center(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+          LegendItem(
+              label: 'GPS',
+              shape: BoxShape.circle,
+              color: Colors.blue,
+              isSelected: selectedSystem == 'GPS',
+              onTap: () => onSystemSelected('GPS'),
+            ),
+          const SizedBox(width: 2),
+          LegendItem(
             label: 'BeiDou',
             shape: BoxShape.rectangle,
-            color: Colors.red),
-        LegendItem(
+            color: Colors.red,
+            isSelected: selectedSystem == 'BeiDou',
+            onTap: () => onSystemSelected('BeiDou'),
+          ),
+          const SizedBox(width: 2),
+          LegendItem(
             label: 'GLONASS',
             isTriangle: true,
-            color: Colors.green),
-        LegendItem(
-            label: 'Galileo', icon: Icons.close, color: Colors.orange),
-        LegendItem(
-            label: 'Other', icon: Icons.star, color: Colors.purple),
-      ],
+            color: Colors.green,
+            isSelected: selectedSystem == 'GLONASS',
+            onTap: () => onSystemSelected('GLONASS'),
+          ),
+          const SizedBox(width: 2),
+          LegendItem(
+            label: 'Galileo',
+            icon: Icons.close,
+            color: Colors.orange,
+            isSelected: selectedSystem == 'Galileo',
+            onTap: () => onSystemSelected('Galileo'),
+          ),
+          const SizedBox(width: 2),
+          LegendItem(
+            label: 'QZSS',
+            icon: Icons.star,
+            color: Colors.purple,
+            isSelected: selectedSystem == 'QZSS',
+            onTap: () => onSystemSelected('QZSS'),
+          ),
+        ]),
+      )
     );
   }
 }
@@ -273,6 +478,8 @@ class LegendItem extends StatelessWidget {
   final IconData? icon;
   final Color color;
   final bool isTriangle;
+  final bool isSelected;
+  final VoidCallback? onTap;
 
   const LegendItem({
     super.key,
@@ -281,35 +488,58 @@ class LegendItem extends StatelessWidget {
     this.shape,
     this.icon,
     this.isTriangle = false,
+    this.isSelected = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null)
-          Icon(icon, size: 14, color: color)
-        else if (isTriangle)
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: CustomPaint(
-              painter: _TrianglePainter(color: color),
-            ),
-          )
-        else
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              shape: shape ?? BoxShape.circle,
-            ),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : Colors.transparent,
+            width: 1,
           ),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null)
+              Icon(icon, size: 14, color: color)
+            else if (isTriangle)
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CustomPaint(
+                  painter: _TrianglePainter(color: color),
+                ),
+              )
+            else
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: shape ?? BoxShape.circle,
+                ),
+              ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

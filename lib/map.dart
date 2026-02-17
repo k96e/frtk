@@ -201,6 +201,8 @@ class _MapPageState extends State<MapPage> {
   MeasureState _measureState = MeasureState.idle;
   LatLng? _measureStartPoint;
   LatLng? _measureEndPoint;
+  double? _measureStartElevation;
+  double? _measureEndElevation;
 
   BaseMapType _currentBaseMap = BaseMapType.osm;
 
@@ -284,7 +286,7 @@ class _MapPageState extends State<MapPage> {
     return (bearing * 180 / math.pi + 360) % 360;
   }
 
-  void _handleMeasureTap(double? latitude, double? longitude) {
+  void _handleMeasureTap(double? latitude, double? longitude, String? elevation) {
     if (latitude == null || longitude == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("等待定位...")),
@@ -292,21 +294,27 @@ class _MapPageState extends State<MapPage> {
       return;
     }
     final currentPos = LatLng(latitude, longitude);
+    final currentEle = double.tryParse(elevation ?? '');
     setState(() {
       switch (_measureState) {
         case MeasureState.idle:
           _measureState = MeasureState.measuring;
           _measureStartPoint = currentPos;
           _measureEndPoint = null;
+          _measureStartElevation = currentEle;
+          _measureEndElevation = null;
           break;
         case MeasureState.measuring:
           _measureState = MeasureState.finished;
           _measureEndPoint = currentPos;
+          _measureEndElevation = currentEle;
           break;
         case MeasureState.finished:
           _measureState = MeasureState.idle;
           _measureStartPoint = null;
           _measureEndPoint = null;
+          _measureStartElevation = null;
+          _measureEndElevation = null;
           break;
       }
     });
@@ -340,7 +348,7 @@ class _MapPageState extends State<MapPage> {
       builder: (context, gnssProvider, child) {
         final latitude = gnssProvider.latitudeDeg;
         final longitude = gnssProvider.longitudeDeg;
-        final elevation = gnssProvider.altitude;
+        final elevation = gnssProvider.altitude.replaceFirst(" m", "");
         final latStdDev = double.tryParse(gnssProvider.latStdDev);
         final lonStdDev = double.tryParse(gnssProvider.lonStdDev);
         final eleStdDev = double.tryParse(gnssProvider.altStdDev);
@@ -366,21 +374,28 @@ class _MapPageState extends State<MapPage> {
 
         double measureDist = 0;
         double measureBear = 0;
+        double? measureElevationDiff;
         List<LatLng> measureLinePoints = [];
         if (_measureState != MeasureState.idle && _measureStartPoint != null) {
           LatLng? target;
+          double? targetEle;
           if (_measureState == MeasureState.measuring) {
             if (latitude != null && longitude != null) {
               target = LatLng(latitude, longitude);
+              targetEle = double.tryParse(elevation);
             }
           } else if (_measureState == MeasureState.finished) {
             target = _measureEndPoint;
+            targetEle = _measureEndElevation;
           }
           if (target != null) {
             measureLinePoints = [_measureStartPoint!, target];
             const Distance distance = Distance(roundResult: false);
             measureDist = distance.as(LengthUnit.Meter, _measureStartPoint!, target);
             measureBear = _calculateBearing(_measureStartPoint!, target);
+            if (_measureStartElevation != null && targetEle != null) {
+              measureElevationDiff = targetEle - _measureStartElevation!;
+            }
           }
         }
 
@@ -397,6 +412,7 @@ class _MapPageState extends State<MapPage> {
           measureLinePoints,
           measureDist,
           measureBear,
+          measureElevationDiff,
         );
       },
     );
@@ -415,6 +431,7 @@ class _MapPageState extends State<MapPage> {
     List<LatLng> measureLinePoints,
     double measureDist,
     double measureBear,
+    double? measureElevationDiff,
   ) {
 
     return Scaffold(
@@ -484,10 +501,26 @@ class _MapPageState extends State<MapPage> {
                       width: 10,
                       height: 10,
                       child: Container(
-                        decoration: const BoxDecoration(
-                            color: Colors.green, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
                       ),
                     ),
+                    if (_measureEndPoint != null && _measureState == MeasureState.finished)
+                      Marker(
+                        point: _measureEndPoint!,
+                        width: 10,
+                        height: 10,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               if (latitude != null && longitude != null)
@@ -576,13 +609,17 @@ class _MapPageState extends State<MapPage> {
                         Text("方位: ${measureBear.toStringAsFixed(2)}°",
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 12)),
+                        if (measureElevationDiff != null)
+                          Text("高程: ${measureElevationDiff >= 0 ? '+' : ''}${measureElevationDiff.toStringAsFixed(4)} m",
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,fontSize: 12))
                       ],
                     ),
                   ),
                 FloatingActionButton(
                   heroTag: "measureTool",
                   mini: true,
-                  onPressed: () => _handleMeasureTap(latitude, longitude),
+                  onPressed: () => _handleMeasureTap(latitude, longitude, elevation),
                   backgroundColor: _measureState == MeasureState.measuring
                       ? Colors.orange
                       : (_measureState == MeasureState.finished

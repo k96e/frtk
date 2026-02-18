@@ -5,6 +5,7 @@ class NmeaData {
   final double? latitudeDeg;
   final double? longitudeDeg;
   final String? altitude;
+  final String? geoidHeight;
   final String? satellites;
   final String? quality;
   final String? hdop;
@@ -30,6 +31,7 @@ class NmeaData {
     this.latitudeDeg,
     this.longitudeDeg,
     this.altitude,
+    this.geoidHeight,
     this.satellites,
     this.quality,
     this.hdop,
@@ -227,6 +229,7 @@ class NmeaParser {
         String sats = parts[7];
         String hdop = parts[8];
         String alt = parts[9];
+        String geoid = (parts.length > 11) ? parts[11] : '';
 
         String? parsedTime;
         if (timeStr.length >= 6) {
@@ -260,6 +263,11 @@ class NmeaParser {
           parsedAltitude = alt.isEmpty ? "--" : "$alt m";
         }
         
+        String? parsedGeoidHeight;
+        if (quality != '0' && geoid.isNotEmpty) {
+          parsedGeoidHeight = "$geoid m";
+        }
+
         return NmeaData(
           time: parsedTime,
           latitude: parsedLatitude,
@@ -267,6 +275,7 @@ class NmeaParser {
           latitudeDeg: latVal,
           longitudeDeg: lonVal,
           altitude: parsedAltitude,
+          geoidHeight: parsedGeoidHeight,
           satellites: parsedSatellites,
           quality: parsedQuality,
           hdop: parsedHdop,

@@ -250,9 +250,9 @@ class SnrBarChartPainter extends CustomPainter {
     const double rightMargin = 8;
     const double maxSnr = 60;
 
-    final chartLeft = leftMargin;
+    const chartLeft = leftMargin;
     final chartRight = size.width - rightMargin;
-    final chartTop = topMargin;
+    const chartTop = topMargin;
     final chartBottom = size.height - bottomMargin;
     final chartWidth = chartRight - chartLeft;
     final chartHeight = chartBottom - chartTop;
@@ -281,7 +281,7 @@ class SnrBarChartPainter extends CustomPainter {
     }
 
     canvas.drawLine(
-        Offset(chartLeft, chartTop), Offset(chartLeft, chartBottom), axisPaint);
+        const Offset(chartLeft, chartTop), Offset(chartLeft, chartBottom), axisPaint);
     canvas.drawLine(
         Offset(chartLeft, chartBottom), Offset(chartRight, chartBottom), axisPaint);
 

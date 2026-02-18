@@ -60,6 +60,7 @@ class DataPanel extends StatelessWidget {
                         gnssProvider.altitude,
                         Icons.terrain,
                         '',
+                        subtitle: '大地水准面 ${gnssProvider.geoidHeight}',
                       ),
                       const Divider(height: 16),
                       Row(
@@ -177,7 +178,7 @@ class DataPanel extends StatelessWidget {
                                   const TextSpan(
                                     text: " km/h",
                                     style: TextStyle(
-                                      fontSize: 14, // 缩小字号
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                       color: Colors.black54,
                                       fontFamily: 'monospace',
@@ -245,7 +246,8 @@ class DataPanel extends StatelessWidget {
   }
 
   Widget _buildBigLocationRow(
-      String label, String value, IconData icon, String dms) {
+      String label, String value, IconData icon, String dms,
+      {String? subtitle}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -258,9 +260,20 @@ class DataPanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              RichText(
+                text: TextSpan(
+                  text: label,
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  children: [
+                    if (subtitle != null)
+                      TextSpan(
+                        text: '  $subtitle',
+                        style: const TextStyle(
+                          fontSize: 12, color: Colors.grey,
+                          fontFamily: 'monospace'),
+                      ),
+                  ],
+                ),
               ),
               Text(
                 value,

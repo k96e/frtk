@@ -9,6 +9,7 @@ class GnssProvider extends ChangeNotifier {
   double? _latitudeDeg;
   double? _longitudeDeg;
   String _altitude = "--";
+  String _geoidHeight = "--";
 
   String _quality = "--";
   String _satellites = "0";
@@ -35,6 +36,7 @@ class GnssProvider extends ChangeNotifier {
   double? get latitudeDeg => _latitudeDeg;
   double? get longitudeDeg => _longitudeDeg;
   String get altitude => _altitude;
+  String get geoidHeight => _geoidHeight;
   String get quality => _quality;
   String get satellites => _satellites;
   String get hdop => _hdop;
@@ -120,6 +122,7 @@ class GnssProvider extends ChangeNotifier {
     hasChanges |= _update(data.latitude, _latitude, (v) => _latitude = v);
     hasChanges |= _update(data.longitude, _longitude, (v) => _longitude = v);
     hasChanges |= _update(data.altitude, _altitude, (v) => _altitude = v);
+    hasChanges |= _update(data.geoidHeight, _geoidHeight, (v) => _geoidHeight = v);
     hasChanges |= _update(data.latitudeDeg, _latitudeDeg, (v) => _latitudeDeg = v);
     hasChanges |= _update(data.longitudeDeg, _longitudeDeg, (v) => _longitudeDeg = v);
     hasChanges |= _update(data.latStdDev, _latStdDev, (v) => _latStdDev = v);
@@ -211,6 +214,7 @@ class GnssProvider extends ChangeNotifier {
     _latitudeDeg = null;
     _longitudeDeg = null;
     _altitude = "--";
+    _geoidHeight = "--";
     _quality = "--";
     _satellites = "0";
     _hdop = "--";
